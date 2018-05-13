@@ -47,38 +47,43 @@ order_products__prior = sqlContext.read.format("csv")\
 order_products__prior1 = order_products__prior.selectExpr("product_id","order_id as order_id_1")
 products_FP = order_products__prior1.join(orders, order_products__prior1.order_id_1 == orders.order_id)
 
-products_FP.select("product_id","order_id","user_id")
-products_FP.show()
+products_FP.select("product_id","order_id","user_id").where(products_FP.product_id.isNotNull())
+#products_FP.show()
 
 import pyspark.sql.functions as F
 
 
 
-transactions = products_FP.groupby("order_id").agg(F.collect_list('product_id'))
+transactione = products_FP.groupby("order_id").agg(F.collect_list('product_id'))
 transactions = products_FP.selectExpr("collect_list(product_id) as items")
 
 
-#trans = transactions.select("items").take(20)
-#trans = trans.collect()
-#a = [(item) for sublist in trans for item in sublist]
-#a = sc.parallelize(a)
+trans = transactions.select("items")
+trans = trans.collect()
+a = [(item) for sublist in trans for item in sublist]
+a = sc.parallelize(a)
 #model = FPGrowth.train(a, minSupport=0.2, numPartitions=10)
 #result = model.freqItemsets().collect()
 
 #for fi in result:
 #    print(fi)
 
-from pyspark.ml.fpm import FPGrowth
+from pyspark.mllib.fpm import FPGrowth
 
-fpGrowth = FPGrowth(itemsCol="items", minSupport=0.05, minConfidence=0.6)
-model = fpGrowth.fit(transactions)
-model.freqItemsets.show()
+#model = FPGrowth.train(transactions, minSupport=0.3, numPartitions=5)
+#result = model.freqItemsets().collect()
 
-model.associationRules.show()
+fpGrowth = FPGrowth.train(a[:20], minSupport=0.1, minConfidence=0.6)
+model = fpGrowth.fit(a[:20])
+
+model.associationRules.show(1)
+model.freqItemsets.show(1)
+
+
 
 # transform examines the input items against all the association rules and summarize the
 # consequents as prediction
-model.transform(transactions).show()
+#model.transform(transactions).show(10)
 
 
 
